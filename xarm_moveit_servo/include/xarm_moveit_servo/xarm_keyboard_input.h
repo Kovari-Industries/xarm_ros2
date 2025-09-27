@@ -88,6 +88,12 @@ private:
     int arm1_command_type_;
     int arm2_command_type_;
 
+    rclcpp::TimerBase::SharedPtr drivetrain_timer_;
+    geometry_msgs::msg::TwistStamped last_drive_cmd_;
+    std::chrono::steady_clock::time_point drive_cmd_expire_;
+    double drivetrain_stream_rate_hz_{100.0};
+    int drivetrain_key_hold_ms_{200};
+    
     std::string cartesian_command_in_topic_;
     std::string joint_command_in_topic_;
     std::string elevator_cmd_vel_topic_;
