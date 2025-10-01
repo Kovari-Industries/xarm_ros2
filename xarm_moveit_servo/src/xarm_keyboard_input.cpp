@@ -15,6 +15,8 @@
 #include <rclcpp/rclcpp.hpp>
 #include <geometry_msgs/msg/twist_stamped.hpp>
 #include <std_msgs/msg/float64.hpp>
+#include <std_msgs/msg/int8.hpp>
+#include <std_msgs/msg/string.hpp>
 #include <control_msgs/msg/joint_jog.hpp>
 #include <moveit_msgs/srv/servo_command_type.hpp>
 #include <std_srvs/srv/trigger.hpp>
@@ -58,6 +60,12 @@
 #define KEYCODE_H 0x68
 #define KEYCODE_B 0x62
 #define KEYCODE_N 0x6E
+#define KEYCODE_M 0x6D
+#define KEYCODE_COMMA 0x2C
+#define KEYCODE_PERIOD 0x2E
+#define KEYCODE_SLASH 0x2F
+#define KEYCODE_Z 0x7A
+#define KEYCODE_X 0x78
 
 KeyboardReader keyboard_reader_;
 
@@ -96,7 +104,7 @@ KeyboardServoPub::KeyboardServoPub(rclcpp::Node::SharedPtr& node)
   // DRIVETRAIN topics & settings
   _declare_or_get_param<std::string>(drivetrain_cmd_vel_topic_, "drivetrain_cmd_vel_topic",
                                      "/drivetrain/cmd_vel");
-  _declare_or_get_param<double>(drivetrain_linear_vel_,  "drivetrain_linear_vel",  0.5);
+  _declare_or_get_param<double>(drivetrain_linear_vel_,  "drivetrain_linear_vel",  1.25);
   _declare_or_get_param<double>(drivetrain_angular_vel_, "drivetrain_angular_vel", 0.5);
 
   // NEW: streaming + watchdog params
@@ -119,6 +127,16 @@ KeyboardServoPub::KeyboardServoPub(rclcpp::Node::SharedPtr& node)
   joint_pub_ = node_->create_publisher<control_msgs::msg::JointJog>(arm1_joint_topic, ros_queue_size_);
   elevator_cmd_vel_pub_ = node_->create_publisher<std_msgs::msg::Float64>(elevator_cmd_vel_topic_, 10);
   drivetrain_cmd_vel_pub_ = node_->create_publisher<geometry_msgs::msg::TwistStamped>(drivetrain_cmd_vel_topic_, 10);
+  
+  // Gripper delta command publishers
+  const auto arm1_gripper_delta_topic = "/" + arm1_ns_ + "/gripper/delta";
+  const auto arm1_gripper_zero_topic = "/" + arm1_ns_ + "/gripper/zero";
+  const auto arm2_gripper_delta_topic = "/" + arm2_ns_ + "/gripper/delta";
+  const auto arm2_gripper_zero_topic = "/" + arm2_ns_ + "/gripper/zero";
+  gripper_delta_pub_arm1_ = node_->create_publisher<std_msgs::msg::Int8>(arm1_gripper_delta_topic, 10);
+  gripper_zero_pub_arm1_ = node_->create_publisher<std_msgs::msg::String>(arm1_gripper_zero_topic, 10);
+  gripper_delta_pub_arm2_ = node_->create_publisher<std_msgs::msg::Int8>(arm2_gripper_delta_topic, 10);
+  gripper_zero_pub_arm2_ = node_->create_publisher<std_msgs::msg::String>(arm2_gripper_zero_topic, 10);
 
   // ---- DRIVETRAIN STREAMING TIMER (always publishes) ----
   last_drive_cmd_.header.frame_id = "base_link";
@@ -289,6 +307,31 @@ void KeyboardServoPub::publish_twist_for_arm(int arm_idx, double dx, double dy, 
   }
 }
 
+// Gripper delta command methods
+void KeyboardServoPub::publish_gripper_delta(int arm_idx, int8_t delta)
+{
+  std_msgs::msg::Int8 msg;
+  msg.data = delta;
+  
+  if (arm_idx == 1) {
+    gripper_delta_pub_arm1_->publish(msg);
+  } else {
+    gripper_delta_pub_arm2_->publish(msg);
+  }
+}
+
+void KeyboardServoPub::publish_gripper_zero(int arm_idx)
+{
+  std_msgs::msg::String msg;
+  msg.data = "zero";
+  
+  if (arm_idx == 1) {
+    gripper_zero_pub_arm1_->publish(msg);
+  } else {
+    gripper_zero_pub_arm2_->publish(msg);
+  }
+}
+
 void KeyboardServoPub::keyLoop()
 {
   char c;
@@ -303,6 +346,8 @@ void KeyboardServoPub::keyLoop()
   puts("Joint jog: 1..6 (prefix from joint_prefix), 'R' flips direction");
   puts("Arrow Up/Down = Elevator velocity (+/-)");
   puts("Drivetrain: T/G = Forward/Back, F/H = Left/Right, B/N = Rotate Left/Right");
+  puts("Gripper Arm1: M/, = Open/Close, Z = Zero");
+  puts("Gripper Arm2: .// = Open/Close, X = Zero");
 
   switch_request_ = std::make_shared<moveit_msgs::srv::ServoCommandType::Request>();
 
@@ -347,6 +392,16 @@ void KeyboardServoPub::keyLoop()
       case KEYCODE_H: publish_drivetrain_velocity(0.0, -drivetrain_linear_vel_, 0.0); break;
       case KEYCODE_B: publish_drivetrain_velocity(0.0, 0.0, +drivetrain_angular_vel_); break;
       case KEYCODE_N: publish_drivetrain_velocity(0.0, 0.0, -drivetrain_angular_vel_); break;
+
+      // GRIPPER ARM1 (M/, = Open/Close, Z = Zero)
+      case KEYCODE_M: publish_gripper_delta(1, +1); break;  // Open arm1 gripper
+      case KEYCODE_COMMA: publish_gripper_delta(1, -1); break;  // Close arm1 gripper
+      case KEYCODE_Z: publish_gripper_zero(1); break;  // Zero arm1 gripper
+
+      // GRIPPER ARM2 (.// = Open/Close, X = Zero)
+      case KEYCODE_PERIOD: publish_gripper_delta(2, +1); break;  // Open arm2 gripper
+      case KEYCODE_SLASH: publish_gripper_delta(2, -1); break;  // Close arm2 gripper
+      case KEYCODE_X: publish_gripper_zero(2); break;  // Zero arm2 gripper
 
       // Joint jog
       case KEYCODE_1: joint_msg->joint_names.push_back(joint_prefix_ + "joint1"); joint_msg->velocities.push_back(joint_vel_cmd_); publish_joint = true; break;

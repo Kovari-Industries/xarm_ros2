@@ -16,6 +16,8 @@
 #include <memory>
 #include <stdexcept>
 #include <std_msgs/msg/float64.hpp>
+#include <std_msgs/msg/int8.hpp>
+#include <std_msgs/msg/string.hpp>
 
 #include <rclcpp/rclcpp.hpp>
 #include <geometry_msgs/msg/twist_stamped.hpp>
@@ -78,6 +80,12 @@ private:
     rclcpp::Publisher<moveit_msgs::msg::PlanningScene>::SharedPtr collision_pub_;
     rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr elevator_cmd_vel_pub_;
     rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr drivetrain_cmd_vel_pub_;
+    
+    // Gripper publishers
+    rclcpp::Publisher<std_msgs::msg::Int8>::SharedPtr gripper_delta_pub_arm1_;
+    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr gripper_zero_pub_arm1_;
+    rclcpp::Publisher<std_msgs::msg::Int8>::SharedPtr gripper_delta_pub_arm2_;
+    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr gripper_zero_pub_arm2_;
     rclcpp::Client<std_srvs::srv::Trigger>::SharedPtr servo_start_client_;
     rclcpp::Client<moveit_msgs::srv::ServoCommandType>::SharedPtr switch_input_arm1_;
     rclcpp::Client<moveit_msgs::srv::ServoCommandType>::SharedPtr switch_input_arm2_;
@@ -122,6 +130,8 @@ private:
     void publish_twist_for_arm(int arm_idx, double dx, double dy, double dz);
     void publish_elevator_velocity(double vz);
     void publish_drivetrain_velocity(double linear_x, double linear_y, double angular_z);
+    void publish_gripper_delta(int arm_idx, int8_t delta);
+    void publish_gripper_zero(int arm_idx);
 };
 
 
