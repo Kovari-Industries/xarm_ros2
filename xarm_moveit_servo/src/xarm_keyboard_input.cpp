@@ -85,6 +85,7 @@ KeyboardServoPub::KeyboardServoPub(rclcpp::Node::SharedPtr& node)
   // before reading params
   joint_prefix_ = "arm1_";  // default; override per-namespace in launch
 
+<<<<<<< Updated upstream
   // parameters
   _declare_or_get_param<std::string>(arm1_ns_, "arm1_ns", "arm1");
   _declare_or_get_param<std::string>(arm2_ns_, "arm2_ns", "arm2");
@@ -100,6 +101,30 @@ KeyboardServoPub::KeyboardServoPub(rclcpp::Node::SharedPtr& node)
   _declare_or_get_param<std::string>(planning_frame_, "moveit_servo.planning_frame", planning_frame_);
   _declare_or_get_param<std::string>(elevator_cmd_vel_topic_, "elevator_cmd_vel_topic", "/elevator/cmd_vel");
   _declare_or_get_param<double>(elevator_vel_step_, "elevator_vel_step", 0.10);
+=======
+    // after your other _declare_or_get_param(...) calls
+    _declare_or_get_param<std::string>(arm1_ns_, "arm1_ns", "arm1");
+    _declare_or_get_param<std::string>(arm2_ns_, "arm2_ns", "arm2");
+    _declare_or_get_param<std::string>(arm1_planning_frame_, "arm1_planning_frame", "arm1_link_base");
+    _declare_or_get_param<std::string>(arm2_planning_frame_, "arm2_planning_frame", "arm2_link_base");
+    _declare_or_get_param<std::string>(joint_prefix_, "joint_prefix", joint_prefix_);
+    _declare_or_get_param<int>(dof_, "dof", dof_);
+    _declare_or_get_param<int>(ros_queue_size_, "ros_queue_size", ros_queue_size_);
+    _declare_or_get_param<std::string>(cartesian_command_in_topic_, "moveit_servo.cartesian_command_in_topic", cartesian_command_in_topic_);
+    _declare_or_get_param<std::string>(joint_command_in_topic_, "moveit_servo.joint_command_in_topic", joint_command_in_topic_);
+    _declare_or_get_param<std::string>(robot_link_command_frame_, "moveit_servo.robot_link_command_frame", robot_link_command_frame_);
+    _declare_or_get_param<std::string>(ee_frame_name_, "moveit_servo.ee_frame_name", ee_frame_name_);
+    _declare_or_get_param<std::string>(planning_frame_, "moveit_servo.planning_frame", planning_frame_);
+    _declare_or_get_param<std::string>(elevator_cmd_vel_topic_, "elevator_cmd_vel_topic", "/elevator/cmd_vel");
+    _declare_or_get_param<double>(elevator_vel_step_, "elevator_vel_step", 0.10);
+    _declare_or_get_param<std::string>(drivetrain_cmd_vel_topic_, "drivetrain_cmd_vel_topic", "/drivetrain/cmd_vel");
+    _declare_or_get_param<double>(drivetrain_linear_vel_, "drivetrain_linear_vel", 3.0);
+    _declare_or_get_param<double>(drivetrain_angular_vel_, "drivetrain_angular_vel", 0.5);
+    _declare_or_get_param<std::string>(gripper_left_topic_, "gripper_left_topic", "/arm1/gripper/width_m");
+    _declare_or_get_param<std::string>(gripper_right_topic_, "gripper_right_topic", "/arm2/gripper/width_m");
+    _declare_or_get_param<double>(gripper_step_, "gripper_step", 0.005);
+    
+>>>>>>> Stashed changes
 
   // DRIVETRAIN topics & settings
   _declare_or_get_param<std::string>(drivetrain_cmd_vel_topic_, "drivetrain_cmd_vel_topic",

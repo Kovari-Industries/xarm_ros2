@@ -210,6 +210,19 @@ namespace xarm_api
         arm->register_report_data_callback(std::bind(&XArmDriver::_report_data_callback, this, std::placeholders::_1));
         arm->connect();
 
+        {
+            int desired_level = 3;
+            int rc = arm->set_collision_sensitivity(desired_level);
+            if (rc != 0) {
+                RCLCPP_WARN(node_->get_logger(),
+                            "set_collision_sensitivity(%d) failed: %d",
+                            desired_level, rc);
+            } else {
+                RCLCPP_INFO(node_->get_logger(),
+                            "Collision sensitivity set to %d", desired_level);
+            }
+        }
+
         int err_warn[2] = {0};
         int ret = arm->get_err_warn_code(err_warn);
         if (err_warn[0] != 0) {
