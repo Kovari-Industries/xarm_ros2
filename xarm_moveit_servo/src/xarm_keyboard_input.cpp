@@ -19,6 +19,7 @@
 #include <std_msgs/msg/string.hpp>
 #include <control_msgs/msg/joint_jog.hpp>
 #include <moveit_msgs/srv/servo_command_type.hpp>
+#include <geometry_msgs/msg/pose_stamped.hpp>
 #include <std_srvs/srv/trigger.hpp>
 
 // Define used keys
@@ -28,6 +29,7 @@
 #define KEYCODE_DOWN  0x42
 #define KEYCODE_PERIOD 0x2E
 #define KEYCODE_SEMICOLON 0x3B
+#define KEYCODE_P 0x70
 #define KEYCODE_1 0x31
 #define KEYCODE_2 0x32
 #define KEYCODE_3 0x33
@@ -71,7 +73,7 @@ KeyboardReader keyboard_reader_;
 
 KeyboardServoPub::KeyboardServoPub(rclcpp::Node::SharedPtr& node)
 : dof_(6), ros_queue_size_(10),
-  // make these RELATIVE so they resolve under your node's namespace (e.g., /arm1/...)
+  // make these RELATIVE so they resolve under your node's namespace (e.g., /left_arm/...)
   cartesian_command_in_topic_("cmd_twist/keyboard"),
   joint_command_in_topic_("joint_delta"),
   // leave frames as-is; your launch/YAML can override them
@@ -83,14 +85,13 @@ KeyboardServoPub::KeyboardServoPub(rclcpp::Node::SharedPtr& node)
 {
   node_ = node;
   // before reading params
-  joint_prefix_ = "arm1_";  // default; override per-namespace in launch
+  joint_prefix_ = "left_arm_";  // default; override per-namespace in launch
 
-<<<<<<< Updated upstream
   // parameters
-  _declare_or_get_param<std::string>(arm1_ns_, "arm1_ns", "arm1");
-  _declare_or_get_param<std::string>(arm2_ns_, "arm2_ns", "arm2");
-  _declare_or_get_param<std::string>(arm1_planning_frame_, "arm1_planning_frame", "arm1_link_base");
-  _declare_or_get_param<std::string>(arm2_planning_frame_, "arm2_planning_frame", "arm2_link_base");
+  _declare_or_get_param<std::string>(left_arm_ns_, "left_arm_ns", "left_arm");
+  _declare_or_get_param<std::string>(right_arm_ns_, "right_arm_ns", "right_arm");
+  _declare_or_get_param<std::string>(left_arm_planning_frame_, "left_arm_planning_frame", "left_arm_link_base");
+  _declare_or_get_param<std::string>(right_arm_planning_frame_, "right_arm_planning_frame", "right_arm_link_base");
   _declare_or_get_param<std::string>(joint_prefix_, "joint_prefix", joint_prefix_);
   _declare_or_get_param<int>(dof_, "dof", dof_);
   _declare_or_get_param<int>(ros_queue_size_, "ros_queue_size", ros_queue_size_);
@@ -101,30 +102,6 @@ KeyboardServoPub::KeyboardServoPub(rclcpp::Node::SharedPtr& node)
   _declare_or_get_param<std::string>(planning_frame_, "moveit_servo.planning_frame", planning_frame_);
   _declare_or_get_param<std::string>(elevator_cmd_vel_topic_, "elevator_cmd_vel_topic", "/elevator/cmd_vel");
   _declare_or_get_param<double>(elevator_vel_step_, "elevator_vel_step", 0.10);
-=======
-    // after your other _declare_or_get_param(...) calls
-    _declare_or_get_param<std::string>(arm1_ns_, "arm1_ns", "arm1");
-    _declare_or_get_param<std::string>(arm2_ns_, "arm2_ns", "arm2");
-    _declare_or_get_param<std::string>(arm1_planning_frame_, "arm1_planning_frame", "arm1_link_base");
-    _declare_or_get_param<std::string>(arm2_planning_frame_, "arm2_planning_frame", "arm2_link_base");
-    _declare_or_get_param<std::string>(joint_prefix_, "joint_prefix", joint_prefix_);
-    _declare_or_get_param<int>(dof_, "dof", dof_);
-    _declare_or_get_param<int>(ros_queue_size_, "ros_queue_size", ros_queue_size_);
-    _declare_or_get_param<std::string>(cartesian_command_in_topic_, "moveit_servo.cartesian_command_in_topic", cartesian_command_in_topic_);
-    _declare_or_get_param<std::string>(joint_command_in_topic_, "moveit_servo.joint_command_in_topic", joint_command_in_topic_);
-    _declare_or_get_param<std::string>(robot_link_command_frame_, "moveit_servo.robot_link_command_frame", robot_link_command_frame_);
-    _declare_or_get_param<std::string>(ee_frame_name_, "moveit_servo.ee_frame_name", ee_frame_name_);
-    _declare_or_get_param<std::string>(planning_frame_, "moveit_servo.planning_frame", planning_frame_);
-    _declare_or_get_param<std::string>(elevator_cmd_vel_topic_, "elevator_cmd_vel_topic", "/elevator/cmd_vel");
-    _declare_or_get_param<double>(elevator_vel_step_, "elevator_vel_step", 0.10);
-    _declare_or_get_param<std::string>(drivetrain_cmd_vel_topic_, "drivetrain_cmd_vel_topic", "/drivetrain/cmd_vel");
-    _declare_or_get_param<double>(drivetrain_linear_vel_, "drivetrain_linear_vel", 3.0);
-    _declare_or_get_param<double>(drivetrain_angular_vel_, "drivetrain_angular_vel", 0.5);
-    _declare_or_get_param<std::string>(gripper_left_topic_, "gripper_left_topic", "/arm1/gripper/width_m");
-    _declare_or_get_param<std::string>(gripper_right_topic_, "gripper_right_topic", "/arm2/gripper/width_m");
-    _declare_or_get_param<double>(gripper_step_, "gripper_step", 0.005);
-    
->>>>>>> Stashed changes
 
   // DRIVETRAIN topics & settings
   _declare_or_get_param<std::string>(drivetrain_cmd_vel_topic_, "drivetrain_cmd_vel_topic",
@@ -136,6 +113,15 @@ KeyboardServoPub::KeyboardServoPub(rclcpp::Node::SharedPtr& node)
   _declare_or_get_param<double>(drivetrain_stream_rate_hz_, "drivetrain_stream_rate_hz", 50.0);  // 50 Hz stream
   _declare_or_get_param<int>(drivetrain_key_hold_ms_, "drivetrain_key_hold_ms", 200);            // 200 ms pulse
 
+  _declare_or_get_param<std::string>(pose_command_in_topic_, "moveit_servo.pose_command_in_topic", "cmd_pose");
+
+  // after creating the other publishers
+  const auto left_arm_pose_topic = "/" + left_arm_ns_ + "/" + pose_command_in_topic_;
+  pose_pub_left_arm_ = node_->create_publisher<geometry_msgs::msg::PoseStamped>(left_arm_pose_topic, 10);
+
+  // optional: confirm in logs
+  RCLCPP_INFO(node_->get_logger(), "Pose pub (left_arm): %s", left_arm_pose_topic.c_str());
+
   if (cartesian_command_in_topic_.rfind("~/", 0) == 0) {
     cartesian_command_in_topic_ = cartesian_command_in_topic_.substr(2);
   }
@@ -143,25 +129,27 @@ KeyboardServoPub::KeyboardServoPub(rclcpp::Node::SharedPtr& node)
     joint_command_in_topic_ = joint_command_in_topic_.substr(2);
   }
 
+
+  // TODO Fix this to use the correct namespaces for the arms
   // Setup pub/sub
-  const auto arm1_twist_topic = "/" + arm1_ns_ + "/" + cartesian_command_in_topic_;
-  const auto arm2_twist_topic = "/" + arm2_ns_ + "/" + cartesian_command_in_topic_;
-  twist_pub_arm1_ = node_->create_publisher<geometry_msgs::msg::TwistStamped>(arm1_twist_topic, rclcpp::SensorDataQoS());
-  twist_pub_arm2_ = node_->create_publisher<geometry_msgs::msg::TwistStamped>(arm2_twist_topic, rclcpp::SensorDataQoS());
-  const auto arm1_joint_topic = "/" + arm1_ns_ + "/" + joint_command_in_topic_;
-  joint_pub_ = node_->create_publisher<control_msgs::msg::JointJog>(arm1_joint_topic, ros_queue_size_);
+  const auto left_arm_twist_topic = "/" + left_arm_ns_ + "/" + cartesian_command_in_topic_;
+  const auto right_arm_twist_topic = "/" + right_arm_ns_ + "/" + cartesian_command_in_topic_;
+  twist_pub_left_arm_ = node_->create_publisher<geometry_msgs::msg::TwistStamped>(left_arm_twist_topic, rclcpp::SensorDataQoS());
+  twist_pub_right_arm_ = node_->create_publisher<geometry_msgs::msg::TwistStamped>(right_arm_twist_topic, rclcpp::SensorDataQoS());
+  const auto left_arm_joint_topic = "/" + left_arm_ns_ + "/" + joint_command_in_topic_;
+  joint_pub_ = node_->create_publisher<control_msgs::msg::JointJog>(left_arm_joint_topic, ros_queue_size_);
   elevator_cmd_vel_pub_ = node_->create_publisher<std_msgs::msg::Float64>(elevator_cmd_vel_topic_, 10);
   drivetrain_cmd_vel_pub_ = node_->create_publisher<geometry_msgs::msg::TwistStamped>(drivetrain_cmd_vel_topic_, 10);
   
   // Gripper delta command publishers
-  const auto arm1_gripper_delta_topic = "/" + arm1_ns_ + "/gripper/delta";
-  const auto arm1_gripper_zero_topic = "/" + arm1_ns_ + "/gripper/zero";
-  const auto arm2_gripper_delta_topic = "/" + arm2_ns_ + "/gripper/delta";
-  const auto arm2_gripper_zero_topic = "/" + arm2_ns_ + "/gripper/zero";
-  gripper_delta_pub_arm1_ = node_->create_publisher<std_msgs::msg::Int8>(arm1_gripper_delta_topic, 10);
-  gripper_zero_pub_arm1_ = node_->create_publisher<std_msgs::msg::String>(arm1_gripper_zero_topic, 10);
-  gripper_delta_pub_arm2_ = node_->create_publisher<std_msgs::msg::Int8>(arm2_gripper_delta_topic, 10);
-  gripper_zero_pub_arm2_ = node_->create_publisher<std_msgs::msg::String>(arm2_gripper_zero_topic, 10);
+  const auto left_arm_gripper_delta_topic = "/" + left_arm_ns_ + "/gripper/delta";
+  const auto left_arm_gripper_zero_topic = "/" + left_arm_ns_ + "/gripper/zero";
+  const auto right_arm_gripper_delta_topic = "/" + right_arm_ns_ + "/gripper/delta";
+  const auto right_arm_gripper_zero_topic = "/" + right_arm_ns_ + "/gripper/zero";
+  gripper_delta_pub_left_arm_ = node_->create_publisher<std_msgs::msg::Int8>(left_arm_gripper_delta_topic, 10);
+  gripper_zero_pub_left_arm_ = node_->create_publisher<std_msgs::msg::String>(left_arm_gripper_zero_topic, 10);
+  gripper_delta_pub_right_arm_ = node_->create_publisher<std_msgs::msg::Int8>(right_arm_gripper_delta_topic, 10);
+  gripper_zero_pub_right_arm_ = node_->create_publisher<std_msgs::msg::String>(right_arm_gripper_zero_topic, 10);
 
   // ---- DRIVETRAIN STREAMING TIMER (always publishes) ----
   last_drive_cmd_.header.frame_id = "base_link";
@@ -194,10 +182,10 @@ KeyboardServoPub::KeyboardServoPub(rclcpp::Node::SharedPtr& node)
   _declare_or_get_param<std::string>(servo_srv_ns_, "servo_srv_ns", servo_srv_ns_);
   _declare_or_get_param<bool>(try_start_service, "try_start_service", try_start_service);
 
-  switch_input_arm1_ = node_->create_client<moveit_msgs::srv::ServoCommandType>(
-      "/" + arm1_ns_ + "/" + servo_srv_ns_ + "/switch_command_type");
-  switch_input_arm2_ = node_->create_client<moveit_msgs::srv::ServoCommandType>(
-      "/" + arm2_ns_ + "/" + servo_srv_ns_ + "/switch_command_type");
+  switch_input_left_arm_ = node_->create_client<moveit_msgs::srv::ServoCommandType>(
+      "/" + left_arm_ns_ + "/" + servo_srv_ns_ + "/switch_command_type");
+  switch_input_right_arm_ = node_->create_client<moveit_msgs::srv::ServoCommandType>(
+      "/" + right_arm_ns_ + "/" + servo_srv_ns_ + "/switch_command_type");
 
   if (try_start_service) {
     servo_start_client_ = node_->create_client<std_srvs::srv::Trigger>(servo_srv_ns_ + std::string("/start_servo"));
@@ -211,14 +199,14 @@ KeyboardServoPub::KeyboardServoPub(rclcpp::Node::SharedPtr& node)
   }
 
   // init switching state
-  arm1_command_type_ = -1;
-  arm2_command_type_ = -1;
+  left_arm_command_type_ = -1;
+  right_arm_command_type_ = -1;
 
   RCLCPP_INFO(node_->get_logger(),
       "Twist pubs: %s, %s | Servo switch: /%s/%s/switch_command_type , /%s/%s/switch_command_type",
-      arm1_twist_topic.c_str(), arm2_twist_topic.c_str(),
-      arm1_ns_.c_str(), servo_srv_ns_.c_str(),
-      arm2_ns_.c_str(), servo_srv_ns_.c_str());
+      left_arm_twist_topic.c_str(), right_arm_twist_topic.c_str(),
+      left_arm_ns_.c_str(), servo_srv_ns_.c_str(),
+      right_arm_ns_.c_str(), servo_srv_ns_.c_str());
 }
 
 template <typename T>
@@ -245,11 +233,33 @@ void KeyboardServoPub::spin()
   }
 }
 
+void KeyboardServoPub::publish_pose_left_arm(double x, double y, double z,
+                                             double qx, double qy, double qz, double qw)
+{
+  // 2 = POSE
+  _switch_command_type(1, 2);
+
+  geometry_msgs::msg::PoseStamped msg;
+  msg.header.stamp = node_->now();
+  // Send pose in the same planning frame you already use
+  msg.header.frame_id = left_arm_planning_frame_;
+
+  msg.pose.position.x = x;
+  msg.pose.position.y = y;
+  msg.pose.position.z = z;
+  msg.pose.orientation.x = qx;
+  msg.pose.orientation.y = qy;
+  msg.pose.orientation.z = qz;
+  msg.pose.orientation.w = qw;
+
+  pose_pub_left_arm_->publish(msg);
+}
+
 void KeyboardServoPub::_switch_command_type(int arm_idx, int command_type)
 {
-  int& last_type = (arm_idx == 1) ? arm1_command_type_ : arm2_command_type_;
-  auto& client   = (arm_idx == 1) ? switch_input_arm1_  : switch_input_arm2_;
-  const char* arm_label = (arm_idx == 1) ? "arm1" : "arm2";
+  int& last_type = (arm_idx == 1) ? left_arm_command_type_ : right_arm_command_type_;
+  auto& client   = (arm_idx == 1) ? switch_input_left_arm_  : switch_input_right_arm_;
+  const char* arm_label = (arm_idx == 1) ? "left_arm" : "right_arm";
 
   if (command_type == last_type) return;
 
@@ -257,7 +267,7 @@ void KeyboardServoPub::_switch_command_type(int arm_idx, int command_type)
     RCLCPP_WARN(node_->get_logger(),
                 "[%s] switch_command_type service unavailable: /%s/%s/switch_command_type",
                 arm_label,
-                (arm_idx == 1 ? arm1_ns_.c_str() : arm2_ns_.c_str()),
+                (arm_idx == 1 ? left_arm_ns_.c_str() : right_arm_ns_.c_str()),
                 servo_srv_ns_.c_str());
     return;
   }
@@ -320,15 +330,15 @@ void KeyboardServoPub::publish_twist_for_arm(int arm_idx, double dx, double dy, 
 
   geometry_msgs::msg::TwistStamped msg;
   msg.header.stamp = node_->now();
-  msg.header.frame_id = (arm_idx == 1) ? arm1_planning_frame_ : arm2_planning_frame_;
+  msg.header.frame_id = (arm_idx == 1) ? left_arm_planning_frame_ : right_arm_planning_frame_;
   msg.twist.linear.x = dx;
   msg.twist.linear.y = dy;
   msg.twist.linear.z = dz;
 
   if (arm_idx == 1) {
-    twist_pub_arm1_->publish(msg);
+    twist_pub_left_arm_->publish(msg);
   } else {
-    twist_pub_arm2_->publish(msg);
+    twist_pub_right_arm_->publish(msg);
   }
 }
 
@@ -339,9 +349,9 @@ void KeyboardServoPub::publish_gripper_delta(int arm_idx, int8_t delta)
   msg.data = delta;
   
   if (arm_idx == 1) {
-    gripper_delta_pub_arm1_->publish(msg);
+    gripper_delta_pub_left_arm_->publish(msg);
   } else {
-    gripper_delta_pub_arm2_->publish(msg);
+    gripper_delta_pub_right_arm_->publish(msg);
   }
 }
 
@@ -351,9 +361,9 @@ void KeyboardServoPub::publish_gripper_zero(int arm_idx)
   msg.data = "zero";
   
   if (arm_idx == 1) {
-    gripper_zero_pub_arm1_->publish(msg);
+    gripper_zero_pub_left_arm_->publish(msg);
   } else {
-    gripper_zero_pub_arm2_->publish(msg);
+    gripper_zero_pub_right_arm_->publish(msg);
   }
 }
 
@@ -366,13 +376,13 @@ void KeyboardServoPub::keyLoop()
 
   puts("Reading from keyboard");
   puts("---------------------------");
-  puts("Arm1 (WASD = X/Y, Q/E = Z)");
-  puts("Arm2 (IJKL = X/Y, U/O = Z)");
+  puts("left_arm (WASD = X/Y, Q/E = Z)");
+  puts("right_arm (IJKL = X/Y, U/O = Z)");
   puts("Joint jog: 1..6 (prefix from joint_prefix), 'R' flips direction");
   puts("Arrow Up/Down = Elevator velocity (+/-)");
   puts("Drivetrain: T/G = Forward/Back, F/H = Left/Right, B/N = Rotate Left/Right");
-  puts("Gripper Arm1: M/, = Open/Close, Z = Zero");
-  puts("Gripper Arm2: .// = Open/Close, X = Zero");
+  puts("Gripper left_arm: M/, = Open/Close, Z = Zero");
+  puts("Gripper right_arm: .// = Open/Close, X = Zero");
 
   switch_request_ = std::make_shared<moveit_msgs::srv::ServoCommandType::Request>();
 
@@ -390,6 +400,10 @@ void KeyboardServoPub::keyLoop()
     // Use read key-press
     switch (c)
     {
+      case KEYCODE_P:
+        // Example target: 50 cm forward, 0 cm lateral, 30 cm up, identity orientation
+        publish_pose_left_arm(0.40, 0.0, 0.55, 1.0, 0.0, 0.0, 0.0);
+        break;
       // Arm 1 twist
       case KEYCODE_W:  publish_twist_for_arm(1, +linear_pos_cmd_,  0.0,              0.0); break;
       case KEYCODE_S:  publish_twist_for_arm(1, -linear_pos_cmd_,  0.0,              0.0); break;
@@ -418,15 +432,15 @@ void KeyboardServoPub::keyLoop()
       case KEYCODE_B: publish_drivetrain_velocity(0.0, 0.0, +drivetrain_angular_vel_); break;
       case KEYCODE_N: publish_drivetrain_velocity(0.0, 0.0, -drivetrain_angular_vel_); break;
 
-      // GRIPPER ARM1 (M/, = Open/Close, Z = Zero)
-      case KEYCODE_M: publish_gripper_delta(1, +1); break;  // Open arm1 gripper
-      case KEYCODE_COMMA: publish_gripper_delta(1, -1); break;  // Close arm1 gripper
-      case KEYCODE_Z: publish_gripper_zero(1); break;  // Zero arm1 gripper
+      // GRIPPER left_arm (M/, = Open/Close, Z = Zero)
+      case KEYCODE_M: publish_gripper_delta(1, +1); break;  // Open left_arm gripper
+      case KEYCODE_COMMA: publish_gripper_delta(1, -1); break;  // Close left_arm gripper
+      case KEYCODE_Z: publish_gripper_zero(1); break;  // Zero left_arm gripper
 
-      // GRIPPER ARM2 (.// = Open/Close, X = Zero)
-      case KEYCODE_PERIOD: publish_gripper_delta(2, +1); break;  // Open arm2 gripper
-      case KEYCODE_SLASH: publish_gripper_delta(2, -1); break;  // Close arm2 gripper
-      case KEYCODE_X: publish_gripper_zero(2); break;  // Zero arm2 gripper
+      // GRIPPER right_arm (.// = Open/Close, X = Zero)
+      case KEYCODE_PERIOD: publish_gripper_delta(2, +1); break;  // Open right_arm gripper
+      case KEYCODE_SLASH: publish_gripper_delta(2, -1); break;  // Close right_arm gripper
+      case KEYCODE_X: publish_gripper_zero(2); break;  // Zero right_arm gripper
 
       // Joint jog
       case KEYCODE_1: joint_msg->joint_names.push_back(joint_prefix_ + "joint1"); joint_msg->velocities.push_back(joint_vel_cmd_); publish_joint = true; break;

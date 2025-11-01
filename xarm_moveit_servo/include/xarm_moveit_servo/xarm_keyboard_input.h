@@ -23,6 +23,7 @@
 #include <geometry_msgs/msg/twist_stamped.hpp>
 #include <geometry_msgs/msg/twist.hpp>
 #include <control_msgs/msg/joint_jog.hpp>
+#include <geometry_msgs/msg/pose_stamped.hpp>
 #include <std_srvs/srv/trigger.hpp>
 #include <moveit_msgs/msg/planning_scene.hpp>
 #include <moveit_msgs/srv/servo_command_type.hpp>
@@ -74,27 +75,29 @@ private:
     void _declare_or_get_param(T& output_value, const std::string& param_name, const T default_value = T{});
     void spin();
 
-    rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr twist_pub_arm1_;
-    rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr twist_pub_arm2_;
+    rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr twist_pub_left_arm_;
+    rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr twist_pub_right_arm_;
     rclcpp::Publisher<control_msgs::msg::JointJog>::SharedPtr joint_pub_;
     rclcpp::Publisher<moveit_msgs::msg::PlanningScene>::SharedPtr collision_pub_;
     rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr elevator_cmd_vel_pub_;
     rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr drivetrain_cmd_vel_pub_;
-    
+    rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pose_pub_left_arm_;
+    std::string pose_command_in_topic_;
+
     // Gripper publishers
-    rclcpp::Publisher<std_msgs::msg::Int8>::SharedPtr gripper_delta_pub_arm1_;
-    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr gripper_zero_pub_arm1_;
-    rclcpp::Publisher<std_msgs::msg::Int8>::SharedPtr gripper_delta_pub_arm2_;
-    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr gripper_zero_pub_arm2_;
+    rclcpp::Publisher<std_msgs::msg::Int8>::SharedPtr gripper_delta_pub_left_arm_;
+    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr gripper_zero_pub_left_arm_;
+    rclcpp::Publisher<std_msgs::msg::Int8>::SharedPtr gripper_delta_pub_right_arm_;
+    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr gripper_zero_pub_right_arm_;
     rclcpp::Client<std_srvs::srv::Trigger>::SharedPtr servo_start_client_;
-    rclcpp::Client<moveit_msgs::srv::ServoCommandType>::SharedPtr switch_input_arm1_;
-    rclcpp::Client<moveit_msgs::srv::ServoCommandType>::SharedPtr switch_input_arm2_;
+    rclcpp::Client<moveit_msgs::srv::ServoCommandType>::SharedPtr switch_input_left_arm_;
+    rclcpp::Client<moveit_msgs::srv::ServoCommandType>::SharedPtr switch_input_right_arm_;
     std::shared_ptr<moveit_msgs::srv::ServoCommandType::Request> switch_request_;
 
     int dof_;
     int ros_queue_size_;
-    int arm1_command_type_;
-    int arm2_command_type_;
+    int left_arm_command_type_;
+    int right_arm_command_type_;
 
     rclcpp::TimerBase::SharedPtr drivetrain_timer_;
     geometry_msgs::msg::TwistStamped last_drive_cmd_;
@@ -111,10 +114,10 @@ private:
     std::string ee_frame_name_;
 
     std::string planning_frame_;
-    std::string arm1_ns_;
-    std::string arm2_ns_;
-    std::string arm1_planning_frame_;
-    std::string arm2_planning_frame_;
+    std::string left_arm_ns_;
+    std::string right_arm_ns_;
+    std::string left_arm_planning_frame_;
+    std::string right_arm_planning_frame_;
     std::string servo_srv_ns_;
 
     std::string joint_prefix_;
@@ -132,6 +135,7 @@ private:
     void publish_drivetrain_velocity(double linear_x, double linear_y, double angular_z);
     void publish_gripper_delta(int arm_idx, int8_t delta);
     void publish_gripper_zero(int arm_idx);
+    void publish_pose_left_arm(double x, double y, double z, double qx, double qy, double qz, double qw);
 };
 
 
