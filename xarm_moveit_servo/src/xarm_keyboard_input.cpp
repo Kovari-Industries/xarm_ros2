@@ -90,8 +90,8 @@ KeyboardServoPub::KeyboardServoPub(rclcpp::Node::SharedPtr& node)
   // parameters
   _declare_or_get_param<std::string>(left_arm_ns_, "left_arm_ns", "left_arm");
   _declare_or_get_param<std::string>(right_arm_ns_, "right_arm_ns", "right_arm");
-  _declare_or_get_param<std::string>(left_arm_planning_frame_, "left_arm_planning_frame", "left_arm_link_base");
-  _declare_or_get_param<std::string>(right_arm_planning_frame_, "right_arm_planning_frame", "right_arm_link_base");
+  _declare_or_get_param<std::string>(left_arm_planning_frame_, "left_arm_planning_frame", "openarm_left_link0");
+  _declare_or_get_param<std::string>(right_arm_planning_frame_, "right_arm_planning_frame", "openarm_right_link0");
   _declare_or_get_param<std::string>(joint_prefix_, "joint_prefix", joint_prefix_);
   _declare_or_get_param<int>(dof_, "dof", dof_);
   _declare_or_get_param<int>(ros_queue_size_, "ros_queue_size", ros_queue_size_);
@@ -443,12 +443,12 @@ void KeyboardServoPub::keyLoop()
       case KEYCODE_X: publish_gripper_zero(2); break;  // Zero right_arm gripper
 
       // Joint jog
-      case KEYCODE_1: joint_msg->joint_names.push_back(joint_prefix_ + "joint1"); joint_msg->velocities.push_back(joint_vel_cmd_); publish_joint = true; break;
-      case KEYCODE_2: joint_msg->joint_names.push_back(joint_prefix_ + "joint2"); joint_msg->velocities.push_back(joint_vel_cmd_); publish_joint = true; break;
-      case KEYCODE_3: joint_msg->joint_names.push_back(joint_prefix_ + "joint3"); joint_msg->velocities.push_back(joint_vel_cmd_); publish_joint = true; break;
-      case KEYCODE_4: joint_msg->joint_names.push_back(joint_prefix_ + "joint4"); joint_msg->velocities.push_back(joint_vel_cmd_); publish_joint = true; break;
-      case KEYCODE_5: joint_msg->joint_names.push_back(joint_prefix_ + "joint5"); joint_msg->velocities.push_back(joint_vel_cmd_); publish_joint = true; break;
-      case KEYCODE_6: joint_msg->joint_names.push_back(joint_prefix_ + "joint6"); joint_msg->velocities.push_back(joint_vel_cmd_); publish_joint = true; break;
+      case KEYCODE_1: joint_msg->joint_names.push_back("openarm_left_joint1"); joint_msg->velocities.push_back(joint_vel_cmd_); publish_joint = true; break;
+      case KEYCODE_2: joint_msg->joint_names.push_back("openarm_left_joint2"); joint_msg->velocities.push_back(joint_vel_cmd_); publish_joint = true; break;
+      case KEYCODE_3: joint_msg->joint_names.push_back("openarm_left_joint3"); joint_msg->velocities.push_back(joint_vel_cmd_); publish_joint = true; break;
+      case KEYCODE_4: joint_msg->joint_names.push_back("openarm_left_joint4"); joint_msg->velocities.push_back(joint_vel_cmd_); publish_joint = true; break;
+      case KEYCODE_5: joint_msg->joint_names.push_back("openarm_left_joint5"); joint_msg->velocities.push_back(joint_vel_cmd_); publish_joint = true; break;
+      case KEYCODE_6: joint_msg->joint_names.push_back("openarm_left_joint6"); joint_msg->velocities.push_back(joint_vel_cmd_); publish_joint = true; break;
       case KEYCODE_7: joint_msg->joint_names.push_back("joint7");                joint_msg->velocities.push_back(joint_vel_cmd_); publish_joint = true; break;
       case KEYCODE_R: joint_vel_cmd_ *= -1; break;
     }
