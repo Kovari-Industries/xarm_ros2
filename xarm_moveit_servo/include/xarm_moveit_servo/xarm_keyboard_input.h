@@ -82,6 +82,9 @@ private:
     rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr elevator_cmd_vel_pub_;
     rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr drivetrain_cmd_vel_pub_;
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pose_pub_left_arm_;
+    rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pose_pub_right_arm_;
+    rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pose_pub_left_arm_smoothed_;
+    rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pose_pub_right_arm_smoothed_;
     std::string pose_command_in_topic_;
 
     // Gripper publishers
@@ -136,6 +139,9 @@ private:
     void publish_gripper_delta(int arm_idx, int8_t delta);
     void publish_gripper_zero(int arm_idx);
     void publish_pose_left_arm(double x, double y, double z, double qx, double qy, double qz, double qw);
+    void publish_pose_right_arm(double x, double y, double z, double qx, double qy, double qz, double qw);
+    void publish_pose_left_arm_smoothed(double x, double y, double z, double qx, double qy, double qz, double qw);
+    void publish_pose_right_arm_smoothed(double x, double y, double z, double qx, double qy, double qz, double qw);
 };
 
 

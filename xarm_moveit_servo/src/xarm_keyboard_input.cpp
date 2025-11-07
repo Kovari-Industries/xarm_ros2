@@ -119,8 +119,21 @@ KeyboardServoPub::KeyboardServoPub(rclcpp::Node::SharedPtr& node)
   const auto left_arm_pose_topic = "/" + left_arm_ns_ + "/" + pose_command_in_topic_;
   pose_pub_left_arm_ = node_->create_publisher<geometry_msgs::msg::PoseStamped>(left_arm_pose_topic, 10);
 
+  const auto right_arm_pose_topic = "/" + right_arm_ns_ + "/" + pose_command_in_topic_;
+  pose_pub_right_arm_ = node_->create_publisher<geometry_msgs::msg::PoseStamped>(right_arm_pose_topic, 10);
+
+  // Publishers for bypassing the bridge (direct to smoothed topic)
+  const auto left_arm_pose_smoothed_topic = "/" + left_arm_ns_ + "/" + pose_command_in_topic_ + "/smoothed";
+  pose_pub_left_arm_smoothed_ = node_->create_publisher<geometry_msgs::msg::PoseStamped>(left_arm_pose_smoothed_topic, 10);
+
+  const auto right_arm_pose_smoothed_topic = "/" + right_arm_ns_ + "/" + pose_command_in_topic_ + "/smoothed";
+  pose_pub_right_arm_smoothed_ = node_->create_publisher<geometry_msgs::msg::PoseStamped>(right_arm_pose_smoothed_topic, 10);
+
   // optional: confirm in logs
   RCLCPP_INFO(node_->get_logger(), "Pose pub (left_arm): %s", left_arm_pose_topic.c_str());
+  RCLCPP_INFO(node_->get_logger(), "Pose pub (right_arm): %s", right_arm_pose_topic.c_str());
+  RCLCPP_INFO(node_->get_logger(), "Pose pub smoothed (left_arm): %s", left_arm_pose_smoothed_topic.c_str());
+  RCLCPP_INFO(node_->get_logger(), "Pose pub smoothed (right_arm): %s", right_arm_pose_smoothed_topic.c_str());
 
   if (cartesian_command_in_topic_.rfind("~/", 0) == 0) {
     cartesian_command_in_topic_ = cartesian_command_in_topic_.substr(2);
@@ -253,6 +266,70 @@ void KeyboardServoPub::publish_pose_left_arm(double x, double y, double z,
   msg.pose.orientation.w = qw;
 
   pose_pub_left_arm_->publish(msg);
+}
+
+void KeyboardServoPub::publish_pose_right_arm(double x, double y, double z,
+                                             double qx, double qy, double qz, double qw)
+{
+  // 2 = POSE
+  _switch_command_type(2, 2);
+  geometry_msgs::msg::PoseStamped msg;
+  msg.header.stamp = node_->now();
+  // Send pose in the same planning frame you already use
+  msg.header.frame_id = right_arm_planning_frame_;
+
+  msg.pose.position.x = x;
+  msg.pose.position.y = y;
+  msg.pose.position.z = z;
+  msg.pose.orientation.x = qx;
+  msg.pose.orientation.y = qy;
+  msg.pose.orientation.z = qz;
+  msg.pose.orientation.w = qw;
+
+  pose_pub_right_arm_->publish(msg);
+}
+
+void KeyboardServoPub::publish_pose_left_arm_smoothed(double x, double y, double z,
+                                                      double qx, double qy, double qz, double qw)
+{
+  // 2 = POSE
+  _switch_command_type(1, 2);
+
+  geometry_msgs::msg::PoseStamped msg;
+  msg.header.stamp = node_->now();
+  // Send pose in the same planning frame you already use
+  msg.header.frame_id = left_arm_planning_frame_;
+
+  msg.pose.position.x = x;
+  msg.pose.position.y = y;
+  msg.pose.position.z = z;
+  msg.pose.orientation.x = qx;
+  msg.pose.orientation.y = qy;
+  msg.pose.orientation.z = qz;
+  msg.pose.orientation.w = qw;
+
+  pose_pub_left_arm_smoothed_->publish(msg);
+}
+
+void KeyboardServoPub::publish_pose_right_arm_smoothed(double x, double y, double z,
+                                                        double qx, double qy, double qz, double qw)
+{
+  // 2 = POSE
+  _switch_command_type(2, 2);
+  geometry_msgs::msg::PoseStamped msg;
+  msg.header.stamp = node_->now();
+  // Send pose in the same planning frame you already use
+  msg.header.frame_id = right_arm_planning_frame_;
+
+  msg.pose.position.x = x;
+  msg.pose.position.y = y;
+  msg.pose.position.z = z;
+  msg.pose.orientation.x = qx;
+  msg.pose.orientation.y = qy;
+  msg.pose.orientation.z = qz;
+  msg.pose.orientation.w = qw;
+
+  pose_pub_right_arm_smoothed_->publish(msg);
 }
 
 void KeyboardServoPub::_switch_command_type(int arm_idx, int command_type)
@@ -401,24 +478,54 @@ void KeyboardServoPub::keyLoop()
     switch (c)
     {
       case KEYCODE_P:
-        // Example target: 50 cm forward, 0 cm lateral, 30 cm up, identity orientation
-        publish_pose_left_arm(0.40, 0.0, 0.55, 1.0, 0.0, 0.0, 0.0);
+        publish_pose_left_arm(-0.200, -0.200, 0.600, 0,0,0,1);
         break;
+      // case KEYCODE_W:
+      //   publish_pose_right_arm(0.220, -0.325, 0.123, 0.0, 0.0, 0.0, 1.0);
+      //   break;
+      // case KEYCODE_S:
+      //   publish_pose_left_arm(-0.3, -1.2, 0.2, 1.0, 0.0, 0.0, 0.0);
+      //   break;
+      // case KEYCODE_A:
+      //   publish_pose_left_arm(-0.3, -1.0, -0.1, 1.0, 0.0, 0.0, 0.0);
+      //   break;
+      // case KEYCODE_D:
+      //   publish_pose_left_arm(-0.3, -0.8, -0.2, 1.0, 0.0, 0.0, 0.0);
+      //   break;
+      // case KEYCODE_Q:
+      //   publish_pose_left_arm(-0.3, -0.6, 0.0, 0.0, 1.0, 0.0, 0.0);
+      //   break;
+      // case KEYCODE_E:
+      //   publish_pose_left_arm(-0.3, -0.6, 0.0, 0.0, 0.0, 1.0, 0.0);
+      //   break;
+
       // Arm 1 twist
-      case KEYCODE_W:  publish_twist_for_arm(1, +linear_pos_cmd_,  0.0,              0.0); break;
-      case KEYCODE_S:  publish_twist_for_arm(1, -linear_pos_cmd_,  0.0,              0.0); break;
-      case KEYCODE_A:  publish_twist_for_arm(1,  0.0,             +linear_pos_cmd_,  0.0); break;
-      case KEYCODE_D:  publish_twist_for_arm(1,  0.0,             -linear_pos_cmd_,  0.0); break;
+      // case KEYCODE_W:  publish_pose_left_arm_smoothed(0.300, 0.2000, 0.3000, 0.000, 0.707, 0.000, 0.707); break;
+      // case KEYCODE_S:  publish_pose_left_arm_smoothed(0.300, 0.2000, 0.3000, 0.000, 0.000, 0.000, 1.000); break;
+      // case KEYCODE_A:  publish_pose_left_arm_smoothed(0.300, 0.2000, 0.3000, 0.000, 0.000, 0.707, 0.707); break;
+      // case KEYCODE_D:  publish_pose_left_arm_smoothed(0.300, 0.1000, 0.1000, -0.500, 0.500, -0.500, 0.500); break;
+
+      case KEYCODE_W:  publish_pose_right_arm_smoothed(0.300, -0.2000, 0.3000, 0.000, 0.707, 0.000, 0.707); break;
+      case KEYCODE_S:  publish_pose_right_arm_smoothed(0.300, -0.2000, 0.3000, 0.000, 0.000, 0.000, 1.000); break;
+      case KEYCODE_A:  publish_pose_right_arm_smoothed(0.300, -0.2000, 0.3000, 0.000, 0.000, 0.707, 0.707); break;
+      case KEYCODE_D:  publish_pose_right_arm_smoothed(0.300, 0.1000, 0.1000, -0.500, 0.500, -0.500, 0.500); break;
       case KEYCODE_Q:  publish_twist_for_arm(1,  0.0,              0.0,             +linear_pos_cmd_); break;
       case KEYCODE_E:  publish_twist_for_arm(1,  0.0,              0.0,             -linear_pos_cmd_); break;
 
-      // Arm 2 twist
-      case KEYCODE_I:  publish_twist_for_arm(2, +linear_pos_cmd_,  0.0,              0.0); break;
-      case KEYCODE_K:  publish_twist_for_arm(2, -linear_pos_cmd_,  0.0,              0.0); break;
-      case KEYCODE_J:  publish_twist_for_arm(2,  0.0,             +linear_pos_cmd_,  0.0); break;
-      case KEYCODE_L:  publish_twist_for_arm(2,  0.0,             -linear_pos_cmd_,  0.0); break;
-      case KEYCODE_U:  publish_twist_for_arm(2,  0.0,              0.0,             +linear_pos_cmd_); break;
-      case KEYCODE_O:  publish_twist_for_arm(2,  0.0,              0.0,             -linear_pos_cmd_); break;
+      // // Arm 2 twist
+      // case KEYCODE_I:  publish_twist_for_arm(2, +linear_pos_cmd_,  0.0,              0.0); break;
+      // case KEYCODE_K:  publish_twist_for_arm(2, -linear_pos_cmd_,  0.0,              0.0); break;
+      // case KEYCODE_J:  publish_twist_for_arm(2,  0.0,             +linear_pos_cmd_,  0.0); break;
+      // case KEYCODE_L:  publish_twist_for_arm(2,  0.0,             -linear_pos_cmd_,  0.0); break;
+      // case KEYCODE_U:  publish_twist_for_arm(2,  0.0,              0.0,             +linear_pos_cmd_); break;
+      // case KEYCODE_O:  publish_twist_for_arm(2,  0.0,              0.0,             -linear_pos_cmd_); break;
+
+      case KEYCODE_I:  publish_pose_left_arm(-0.200, -0.300, 0.500, 0.500, -0.500, -0.500, 0.500); break;
+      case KEYCODE_K:  publish_pose_left_arm(-0.200, -0.300, 0.500, 0.707, 0.000, -0.707, 0.000); break;
+      case KEYCODE_J:  publish_pose_left_arm(-0.200, -0.300, 0.500, 0.000, 0.000, -0.707, 0.707); break;
+      case KEYCODE_L:  publish_pose_right_arm(0.200, -0.300, 0.500, -0.500, -0.500, -0.500, -0.500); break;
+      case KEYCODE_U:  publish_pose_right_arm(0.400, -0.300, 0.500, 0.000, 0.707, 0.000, 0.707); break;
+      case KEYCODE_O:  publish_pose_right_arm(0.200, -0.300, 0.500, 0.000, 0.000, -0.707, -0.707); break;
 
       // Elevator
       case KEYCODE_UP:    publish_elevator_velocity(+elevator_vel_step_); break;
