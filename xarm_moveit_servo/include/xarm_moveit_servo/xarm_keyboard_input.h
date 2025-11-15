@@ -131,6 +131,13 @@ private:
     double drivetrain_linear_vel_;
     double drivetrain_angular_vel_;
 
+    // Current pose for incremental control (left arm) - simple variables
+    double left_arm_x_;
+    double left_arm_y_;
+    double left_arm_z_;
+    bool left_arm_pose_initialized_;
+    double pose_delta_step_;  // Step size for incremental pose movements
+
     rclcpp::Node::SharedPtr node_;
     void _switch_command_type(int arm_idx, int command_type);
     void publish_twist_for_arm(int arm_idx, double dx, double dy, double dz);
@@ -142,6 +149,7 @@ private:
     void publish_pose_right_arm(double x, double y, double z, double qx, double qy, double qz, double qw);
     void publish_pose_left_arm_smoothed(double x, double y, double z, double qx, double qy, double qz, double qw);
     void publish_pose_right_arm_smoothed(double x, double y, double z, double qx, double qy, double qz, double qw);
+    void publish_incremental_left_arm_pose(double dx, double dy, double dz);
 };
 
 

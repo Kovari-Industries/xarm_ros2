@@ -68,6 +68,7 @@
 #define KEYCODE_SLASH 0x2F
 #define KEYCODE_Z 0x7A
 #define KEYCODE_X 0x78
+#define KEYCODE_C 0x63
 
 KeyboardReader keyboard_reader_;
 
@@ -114,6 +115,13 @@ KeyboardServoPub::KeyboardServoPub(rclcpp::Node::SharedPtr& node)
   _declare_or_get_param<int>(drivetrain_key_hold_ms_, "drivetrain_key_hold_ms", 200);            // 200 ms pulse
 
   _declare_or_get_param<std::string>(pose_command_in_topic_, "moveit_servo.pose_command_in_topic", "cmd_pose");
+  _declare_or_get_param<double>(pose_delta_step_, "pose_delta_step", 0.02);  // Default 2cm step size
+  
+  // Initialize left arm pose state (simple variables)
+  left_arm_pose_initialized_ = false;
+  left_arm_x_ = 0.3;
+  left_arm_y_ = 0.2;
+  left_arm_z_ = 0.3;
 
   // after creating the other publishers
   const auto left_arm_pose_topic = "/" + left_arm_ns_ + "/" + pose_command_in_topic_;
@@ -332,6 +340,32 @@ void KeyboardServoPub::publish_pose_right_arm_smoothed(double x, double y, doubl
   pose_pub_right_arm_smoothed_->publish(msg);
 }
 
+void KeyboardServoPub::publish_incremental_left_arm_pose(double dx, double dy, double dz)
+{
+  if (!left_arm_pose_initialized_) {
+    RCLCPP_WARN(node_->get_logger(), "Left arm pose not initialized! Press 'C' first.");
+    return;
+  }
+  
+  // Update variables
+  left_arm_x_ += dx;
+  left_arm_y_ += dy;
+  left_arm_z_ += dz;
+  
+  // Publish directly (goes through arm bridge)
+  geometry_msgs::msg::PoseStamped msg;
+  msg.header.stamp = node_->now();
+  msg.header.frame_id = left_arm_planning_frame_;
+  msg.pose.position.x = left_arm_x_;
+  msg.pose.position.y = left_arm_y_;
+  msg.pose.position.z = left_arm_z_;
+  msg.pose.orientation.x = 0.0;
+  msg.pose.orientation.y = 0.0;
+  msg.pose.orientation.z = 0.0;
+  msg.pose.orientation.w = 1.0;
+  pose_pub_left_arm_->publish(msg);
+}
+
 void KeyboardServoPub::_switch_command_type(int arm_idx, int command_type)
 {
   int& last_type = (arm_idx == 1) ? left_arm_command_type_ : right_arm_command_type_;
@@ -453,7 +487,10 @@ void KeyboardServoPub::keyLoop()
 
   puts("Reading from keyboard");
   puts("---------------------------");
-  puts("left_arm (WASD = X/Y, Q/E = Z)");
+  puts("Left arm incremental pose control:");
+  puts("  C = Initialize/capture starting pose");
+  puts("  W/A/S/D = Move in X/Y axes (forward/back, left/right)");
+  puts("  Q/E = Move in Z axis (up/down)");
   puts("right_arm (IJKL = X/Y, U/O = Z)");
   puts("Joint jog: 1..6 (prefix from joint_prefix), 'R' flips direction");
   puts("Arrow Up/Down = Elevator velocity (+/-)");
@@ -480,6 +517,35 @@ void KeyboardServoPub::keyLoop()
       case KEYCODE_P:
         publish_pose_left_arm(-0.200, -0.200, 0.600, 0,0,0,1);
         break;
+      
+      // Initialize left arm pose - set variables and publish
+      case KEYCODE_C:
+        left_arm_x_ = 0.3;
+        left_arm_y_ = 0.2;
+        left_arm_z_ = 0.3;
+        left_arm_pose_initialized_ = true;
+        {
+          geometry_msgs::msg::PoseStamped msg;
+          msg.header.stamp = node_->now();
+          msg.header.frame_id = left_arm_planning_frame_;
+          msg.pose.position.x = left_arm_x_;
+          msg.pose.position.y = left_arm_y_;
+          msg.pose.position.z = left_arm_z_;
+          msg.pose.orientation.x = 0.0;
+          msg.pose.orientation.y = 0.0;
+          msg.pose.orientation.z = 0.0;
+          msg.pose.orientation.w = 1.0;
+          pose_pub_left_arm_->publish(msg);
+        }
+        break;
+      
+      // Left arm incremental pose control (WASDQE)
+      case KEYCODE_W:  publish_incremental_left_arm_pose(+pose_delta_step_, 0.0, 0.0); break;  // Forward (X+)
+      case KEYCODE_S:  publish_incremental_left_arm_pose(-pose_delta_step_, 0.0, 0.0); break;  // Backward (X-)
+      case KEYCODE_A:  publish_incremental_left_arm_pose(0.0, +pose_delta_step_, 0.0); break;  // Left (Y+)
+      case KEYCODE_D:  publish_incremental_left_arm_pose(0.0, -pose_delta_step_, 0.0); break;  // Right (Y-)
+      case KEYCODE_Q:  publish_incremental_left_arm_pose(0.0, 0.0, +pose_delta_step_); break;  // Up (Z+)
+      case KEYCODE_E:  publish_incremental_left_arm_pose(0.0, 0.0, -pose_delta_step_); break;  // Down (Z-)
       // case KEYCODE_W:
       //   publish_pose_right_arm(0.220, -0.325, 0.123, 0.0, 0.0, 0.0, 1.0);
       //   break;
@@ -505,12 +571,13 @@ void KeyboardServoPub::keyLoop()
       // case KEYCODE_A:  publish_pose_left_arm_smoothed(0.300, 0.2000, 0.3000, 0.000, 0.000, 0.707, 0.707); break;
       // case KEYCODE_D:  publish_pose_left_arm_smoothed(0.300, 0.1000, 0.1000, -0.500, 0.500, -0.500, 0.500); break;
 
-      case KEYCODE_W:  publish_pose_right_arm_smoothed(0.300, -0.2000, 0.3000, 0.000, 0.707, 0.000, 0.707); break;
-      case KEYCODE_S:  publish_pose_right_arm_smoothed(0.300, -0.2000, 0.3000, 0.000, 0.000, 0.000, 1.000); break;
-      case KEYCODE_A:  publish_pose_right_arm_smoothed(0.300, -0.2000, 0.3000, 0.000, 0.000, 0.707, 0.707); break;
-      case KEYCODE_D:  publish_pose_right_arm_smoothed(0.300, 0.1000, 0.1000, -0.500, 0.500, -0.500, 0.500); break;
-      case KEYCODE_Q:  publish_twist_for_arm(1,  0.0,              0.0,             +linear_pos_cmd_); break;
-      case KEYCODE_E:  publish_twist_for_arm(1,  0.0,              0.0,             -linear_pos_cmd_); break;
+      // Right arm pose commands (commented out - now using WASDQE for left arm incremental)
+      // case KEYCODE_W:  publish_pose_right_arm_smoothed(0.300, -0.2000, 0.3000, 0.000, 0.707, 0.000, 0.707); break;
+      // case KEYCODE_S:  publish_pose_right_arm_smoothed(0.300, -0.2000, 0.3000, 0.000, 0.000, 0.000, 1.000); break;
+      // case KEYCODE_A:  publish_pose_right_arm_smoothed(0.300, -0.2000, 0.3000, 0.000, 0.000, 0.707, 0.707); break;
+      // case KEYCODE_D:  publish_pose_right_arm_smoothed(0.300, 0.1000, 0.1000, -0.500, 0.500, -0.500, 0.500); break;
+      // case KEYCODE_Q:  publish_twist_for_arm(1,  0.0,              0.0,             +linear_pos_cmd_); break;
+      // case KEYCODE_E:  publish_twist_for_arm(1,  0.0,              0.0,             -linear_pos_cmd_); break;
 
       // // Arm 2 twist
       // case KEYCODE_I:  publish_twist_for_arm(2, +linear_pos_cmd_,  0.0,              0.0); break;
