@@ -107,8 +107,8 @@ KeyboardServoPub::KeyboardServoPub(rclcpp::Node::SharedPtr& node)
   // DRIVETRAIN topics & settings
   _declare_or_get_param<std::string>(drivetrain_cmd_vel_topic_, "drivetrain_cmd_vel_topic",
                                      "/drivetrain/cmd_vel");
-  _declare_or_get_param<double>(drivetrain_linear_vel_,  "drivetrain_linear_vel",  1.25);
-  _declare_or_get_param<double>(drivetrain_angular_vel_, "drivetrain_angular_vel", 0.5);
+  _declare_or_get_param<double>(drivetrain_linear_vel_,  "drivetrain_linear_vel",  0.25);
+  _declare_or_get_param<double>(drivetrain_angular_vel_, "drivetrain_angular_vel", 0.50);
 
   // NEW: streaming + watchdog params
   _declare_or_get_param<double>(drivetrain_stream_rate_hz_, "drivetrain_stream_rate_hz", 50.0);  // 50 Hz stream
