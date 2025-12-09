@@ -11,6 +11,7 @@
 #include <unistd.h>
 #include "xarm_moveit_servo/xarm_keyboard_input.h"
 #include <chrono>
+#include <cmath>
 
 #include <rclcpp/rclcpp.hpp>
 #include <geometry_msgs/msg/twist_stamped.hpp>
@@ -254,6 +255,12 @@ void KeyboardServoPub::spin()
   }
 }
 
+void KeyboardServoPub::offset_counter_center(double dx, double dz)
+{
+  counter_center_x_ += dx;
+  counter_center_z_ += dz;
+}
+
 void KeyboardServoPub::publish_pose_left_arm(double x, double y, double z,
                                              double qx, double qy, double qz, double qw)
 {
@@ -434,6 +441,65 @@ void KeyboardServoPub::publish_drivetrain_velocity(double linear_x, double linea
   drive_cmd_expire_ = std::chrono::steady_clock::now() + std::chrono::milliseconds(drivetrain_key_hold_ms_);
 }
 
+void KeyboardServoPub::counter_wipe_left_arm()
+{
+  const double qx =  -0.5;
+  const double qy =   0.5;
+  const double qz =   0.5;
+  const double qw =   0.5;
+
+  const double radius   = 0.04;
+  const int    steps    = 60;
+  const int    sleep_ms = 20;
+
+  const double two_pi = 6.283185307179586;
+
+  RCLCPP_INFO(
+      node_->get_logger(),
+      "[counter_wipe] center = (%.3f, %.3f, %.3f)",
+      counter_center_x_, counter_center_y_, counter_center_z_);
+
+  for (int i = 0; i < steps; ++i) {
+    double angle = two_pi * static_cast<double>(i) / static_cast<double>(steps);
+
+    // read the *current* center each iteration
+    double x = counter_center_x_ + radius * std::cos(angle);
+    double z = counter_center_z_ + radius * std::sin(angle);
+
+    publish_pose_right_arm(x, counter_center_y_, z, qx, qy, qz, qw);
+    std::this_thread::sleep_for(std::chrono::milliseconds(sleep_ms));
+  }
+}
+
+void KeyboardServoPub::mirror_wipe_left_arm()
+{
+  const double center_x = 0.200;
+  const double center_y = -0.300;
+  const double center_z =  0.500;
+
+  const double qx =  -0.5;
+  const double qy =  0.5;
+  const double qz =  0.5;
+  const double qw =  0.5;
+
+  const double radius = 0.03;
+  const int    steps  = 60;
+  const int    sleep_ms = 20;
+
+  const double two_pi = 6.283185307179586;
+
+  for (int i = 0; i < steps; ++i) {
+    double angle = two_pi * static_cast<double>(i) / static_cast<double>(steps);
+
+    double x = center_x + radius * std::cos(angle);
+    double y = center_y + radius * std::sin(angle);
+    double z = center_z;
+
+    publish_pose_right_arm(x, y, z, qx, qy, qz, qw);
+    std::this_thread::sleep_for(std::chrono::milliseconds(sleep_ms));
+  }
+}
+
 // NEW: publish one TwistStamped for a chosen arm (translation only)
 void KeyboardServoPub::publish_twist_for_arm(int arm_idx, double dx, double dy, double dz)
 {
@@ -540,30 +606,63 @@ void KeyboardServoPub::keyLoop()
         break;
       
       // Left arm incremental pose control (WASDQE)
-      case KEYCODE_W:  publish_incremental_left_arm_pose(+pose_delta_step_, 0.0, 0.0); break;  // Forward (X+)
-      case KEYCODE_S:  publish_incremental_left_arm_pose(-pose_delta_step_, 0.0, 0.0); break;  // Backward (X-)
-      case KEYCODE_A:  publish_incremental_left_arm_pose(0.0, +pose_delta_step_, 0.0); break;  // Left (Y+)
-      case KEYCODE_D:  publish_incremental_left_arm_pose(0.0, -pose_delta_step_, 0.0); break;  // Right (Y-)
-      case KEYCODE_Q:  publish_incremental_left_arm_pose(0.0, 0.0, +pose_delta_step_); break;  // Up (Z+)
-      case KEYCODE_E:  publish_incremental_left_arm_pose(0.0, 0.0, -pose_delta_step_); break;  // Down (Z-)
+      // case KEYCODE_W: publish_twist_for_arm(1, +linear_pos_cmd_, 0.0, 0.0); break;
+      // case KEYCODE_S: publish_twist_for_arm(1, -linear_pos_cmd_, 0.0, 0.0); break;
+      // case KEYCODE_A: publish_twist_for_arm(1, 0.0, +linear_pos_cmd_, 0.0); break;
+      // case KEYCODE_D: publish_twist_for_arm(1, 0.0, -linear_pos_cmd_, 0.0); break;
+      // case KEYCODE_Q: publish_twist_for_arm(1, 0.0, 0.0, +linear_pos_cmd_); break;
+      // case KEYCODE_E: publish_twist_for_arm(1, 0.0, 0.0, -linear_pos_cmd_); break;
+      // // case KEYCODE_I: publish_twist_for_arm(2, +linear_pos_cmd_, 0.0, 0.0); break;
+      // // case KEYCODE_K: publish_twist_for_arm(2, -linear_pos_cmd_, 0.0, 0.0); break;
+      // case KEYCODE_J: publish_twist_for_arm(2, 0.0, +linear_pos_cmd_, 0.0); break;
+      // case KEYCODE_L: publish_twist_for_arm(2, 0.0, -linear_pos_cmd_, 0.0); break;
+      // case KEYCODE_U: publish_twist_for_arm(2, 0.0, 0.0, +linear_pos_cmd_); break;
+      // case KEYCODE_O: publish_twist_for_arm(2, 0.0, 0.0, -linear_pos_cmd_); break;
+
+      // case KEYCODE_I:  publish_pose_left_arm(-0.200, -0.300, 0.500, 0.707,  -0.707,  0.0,    0.0); break;   // +90 X
+      case KEYCODE_I:
+        mirror_wipe_left_arm();
+        break;
+      // +90° about X from center
+      // case KEYCODE_I:  publish_pose_left_arm(-0.200, -0.300, 0.500, 1.0,    0.0,    0.0,    0.0); break;   // identity
+      case KEYCODE_J:
+        counter_wipe_left_arm();
+        break;
+
+      case KEYCODE_W:  // shift center +X
+        offset_counter_center(+0.001, 0.0);
+        break;
+      case KEYCODE_S:  // shift center -X
+        offset_counter_center(-0.001, 0.0);
+        break;
+      case KEYCODE_A:  // shift center +Z
+        offset_counter_center(0.0, +0.001);
+        break;
+      // case KEYCODE_W:  publish_incremental_left_arm_pose(+pose_delta_step_, 0.0, 0.0); break;  // Forward (X+)
+      // case KEYCODE_S:  publish_incremental_left_arm_pose(-pose_delta_step_, 0.0, 0.0); break;  // Backward (X-)
+      // case KEYCODE_A:  publish_incremental_left_arm_pose(0.0, +pose_delta_step_, 0.0); break;  // Left (Y+)
+      // case KEYCODE_D:  publish_incremental_left_arm_pose(0.0, -pose_delta_step_, 0.0); break;  // Right (Y-)
+      // case KEYCODE_Q:  publish_incremental_left_arm_pose(0.0, 0.0, +pose_delta_step_); break;  // Up (Z+)
+      // case KEYCODE_E:  publish_incremental_left_arm_pose(0.0, 0.0, -pose_delta_step_); break;  // Down (Z-)
+
       // case KEYCODE_W:
-      //   publish_pose_right_arm(0.220, -0.325, 0.123, 0.0, 0.0, 0.0, 1.0);
+      //   publish_pose_right_arm(0.200, -0.300, 0.500, 0.707, 0.000, 0.000, 0.707);
       //   break;
       // case KEYCODE_S:
-      //   publish_pose_left_arm(-0.3, -1.2, 0.2, 1.0, 0.0, 0.0, 0.0);
+      //   publish_pose_right_arm(0.200, -0.300, 0.500, 0.000, 0.707, 0.000, 0.707);
       //   break;
       // case KEYCODE_A:
-      //   publish_pose_left_arm(-0.3, -1.0, -0.1, 1.0, 0.0, 0.0, 0.0);
-      //   break;
-      // case KEYCODE_D:
-      //   publish_pose_left_arm(-0.3, -0.8, -0.2, 1.0, 0.0, 0.0, 0.0);
-      //   break;
-      // case KEYCODE_Q:
-      //   publish_pose_left_arm(-0.3, -0.6, 0.0, 0.0, 1.0, 0.0, 0.0);
-      //   break;
-      // case KEYCODE_E:
-      //   publish_pose_left_arm(-0.3, -0.6, 0.0, 0.0, 0.0, 1.0, 0.0);
-      //   break;
+      //   publish_pose_right_arm(0.200, -0.300, 0.500, 0.000, 0.000, 0.707, 0.707);
+        break;
+      case KEYCODE_D:
+        publish_pose_right_arm(0.250, -0.400, 0.300, 0.000, 0.707, 0.000, 0.707);
+        break;
+      case KEYCODE_Q:
+        publish_pose_left_arm(-0.200, -0.300, 0.500, 0.000, 0.000, 0.000, 1.000);
+        break;
+      case KEYCODE_E:
+        publish_pose_right_arm(0.200, -0.300, 0.500, 0.000, -0.707, 0.707, 0.0);
+        break;
 
       // Arm 1 twist
       // case KEYCODE_W:  publish_pose_left_arm_smoothed(0.300, 0.2000, 0.3000, 0.000, 0.707, 0.000, 0.707); break;
@@ -587,12 +686,12 @@ void KeyboardServoPub::keyLoop()
       // case KEYCODE_U:  publish_twist_for_arm(2,  0.0,              0.0,             +linear_pos_cmd_); break;
       // case KEYCODE_O:  publish_twist_for_arm(2,  0.0,              0.0,             -linear_pos_cmd_); break;
 
-      case KEYCODE_I:  publish_pose_left_arm(-0.200, -0.300, 0.500, 0.500, -0.500, -0.500, 0.500); break;
-      case KEYCODE_K:  publish_pose_left_arm(-0.200, -0.300, 0.500, 0.707, 0.000, -0.707, 0.000); break;
-      case KEYCODE_J:  publish_pose_left_arm(-0.200, -0.300, 0.500, 0.000, 0.000, -0.707, 0.707); break;
-      case KEYCODE_L:  publish_pose_right_arm(0.200, -0.300, 0.500, -0.500, -0.500, -0.500, -0.500); break;
-      case KEYCODE_U:  publish_pose_right_arm(0.400, -0.300, 0.500, 0.000, 0.707, 0.000, 0.707); break;
-      case KEYCODE_O:  publish_pose_right_arm(0.200, -0.300, 0.500, 0.000, 0.000, -0.707, -0.707); break;
+      // case KEYCODE_I:  publish_pose_left_arm(-0.200, -0.300, 0.500, 0.0, 0.0, 0.0, 1.0); break;
+      // case KEYCODE_K:  publish_pose_left_arm(-0.200, -0.300, 0.500, 0.707, 0.000, -0.707, 0.000); break;
+      // case KEYCODE_J:  publish_pose_left_arm(-0.200, -0.300, 0.500, 0.000, 0.000, -0.707, 0.707); break;
+      // case KEYCODE_L:  publish_pose_right_arm(0.200, -0.300, 0.500, -0.500, -0.500, -0.500, -0.500); break;
+      // case KEYCODE_U:  publish_pose_right_arm(0.400, -0.300, 0.500, 0.000, 0.707, 0.000, 0.707); break;
+      // case KEYCODE_O:  publish_pose_right_arm(0.200, -0.300, 0.500, 0.000, 0.000, -0.707, -0.707); break;
 
       // Elevator
       case KEYCODE_UP:    publish_elevator_velocity(+elevator_vel_step_); break;

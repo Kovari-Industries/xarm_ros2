@@ -125,6 +125,10 @@ private:
 
     std::string joint_prefix_;
 
+    void counter_wipe_left_arm();
+    void mirror_wipe_left_arm();
+    void offset_counter_center(double dx, double dz);
+
     double joint_vel_cmd_;
     double linear_pos_cmd_;
     double elevator_vel_step_;
@@ -136,6 +140,10 @@ private:
     double left_arm_y_;
     double left_arm_z_;
     bool left_arm_pose_initialized_;
+
+    double counter_center_x_ = 0.200;
+    double counter_center_y_ = -0.400;
+    double counter_center_z_ = 0.400;
     double pose_delta_step_;  // Step size for incremental pose movements
 
     rclcpp::Node::SharedPtr node_;
